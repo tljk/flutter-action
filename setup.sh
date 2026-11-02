@@ -28,6 +28,13 @@ filter_by_version() {
 	jq --arg version "$1" '.[].version |= gsub("^v"; "") | (if $version == "any" then .[0] else (map(select(.version == $version or (.version | startswith(($version | sub("\\.x$"; "")) + ".")) and .version != $version)) | .[0]) end)'
 }
 
+is_git_channel() {
+	case "$1" in
+	stable | beta | dev | any) return 1 ;;
+	*) return 0 ;;
+	esac
+}
+
 not_found_error() {
 	echo "Unable to determine Flutter version for channel: $1 version: $2 architecture: $3"
 }
@@ -148,13 +155,15 @@ if [ -z "${PUB_CACHE:-}" ]; then
 	fi
 fi
 
-if [ "$TEST_MODE" = true ]; then
+if is_git_channel "$CHANNEL"; then
+	RELEASE_MANIFEST=""
+elif [ "$TEST_MODE" = true ]; then
 	RELEASE_MANIFEST=$(cat "$(dirname -- "${BASH_SOURCE[0]}")/test/$MANIFEST_JSON_PATH")
 else
 	RELEASE_MANIFEST=$(curl --silent --connect-timeout 15 --retry 5 "$MANIFEST_URL")
 fi
 
-if [ "$CHANNEL" = "master" ] || [ "$CHANNEL" = "main" ]; then
+if is_git_channel "$CHANNEL"; then
 	VERSION_MANIFEST="{\"channel\":\"$CHANNEL\",\"version\":\"$VERSION\",\"dart_sdk_arch\":\"$ARCH\",\"hash\":\"$CHANNEL\",\"sha256\":\"$CHANNEL\"}"
 else
 	VERSION_MANIFEST=$(echo "$RELEASE_MANIFEST" | filter_by_channel "$CHANNEL" | filter_by_arch "$ARCH" | filter_by_version "$VERSION")
@@ -223,7 +232,7 @@ if [ "$PRINT_ONLY" = true ]; then
 fi
 
 if [ ! -x "$CACHE_PATH/flutter/bin/flutter" ]; then
-	if [ "$CHANNEL" = "master" ] || [ "$CHANNEL" = "main" ]; then
+	if is_git_channel "$CHANNEL"; then
 		git clone -b "$CHANNEL" "$GIT_SOURCE" "$CACHE_PATH/flutter"
 		if [ "$VERSION" != "any" ]; then
 			git config --global --add safe.directory "$CACHE_PATH/flutter"

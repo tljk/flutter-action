@@ -7,7 +7,7 @@ branding:
 
 inputs:
   channel:
-    description: The Flutter build release channel
+    description: Flutter release channel (stable, beta, dev, or any) or Git branch name
     required: false
     default: stable
   flutter-version:
@@ -143,4 +143,5 @@ runs:
           -a '${{ steps.flutter-action.outputs.ARCHITECTURE }}' \
           -c '${{ steps.flutter-action.outputs.CACHE-PATH }}' \
           -d '${{ steps.flutter-action.outputs.PUB-CACHE-PATH }}' \
+          -g '${{ inputs.git-source }}' \
           ${{ steps.flutter-action.outputs.CHANNEL }}
